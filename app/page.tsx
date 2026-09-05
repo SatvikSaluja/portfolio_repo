@@ -15,7 +15,7 @@ export default function Home() {
       <div className="relative z-10 flex flex-col items-center gap-8 px-6 text-center">
         <div>
           <span
-            className="block font-mono text-xs uppercase tracking-[0.2em] text-white/50"
+            className="-translate-y-2 block font-mono text-xs uppercase tracking-[0.2em] text-white/50"
           >
             Research Portfolio
           </span>
@@ -25,7 +25,7 @@ export default function Home() {
           >
             Satvik Saluja
           </h1>
-          <p className="mx-auto mt-4 max-w-md font-mono text-sm tracking-wide text-white/70">
+          <p className="mx-auto mt-10 max-w-md font-mono text-sm tracking-wide text-white/70">
             Scientific Machine Learning, Computational Biology, and Biomedical AI.
           </p>
         </div>
