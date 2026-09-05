@@ -39,15 +39,15 @@ export default function Home() {
             <Link href="/portfolio">Open Portfolio</Link>
           </Button>
 
-          {/* No CV file wired up yet — swap disabled for an <a href="/Satvik_Saluja_CV.pdf" target="_blank"> once one is ready. */}
           <Button
+            asChild
             size="lg"
             variant="outline"
-            disabled
-            className="h-12 cursor-not-allowed rounded-full border-white/20 bg-transparent px-8 text-base font-medium text-white/50 hover:bg-transparent"
-            title="CV coming soon"
+            className="h-12 rounded-full border-white/30 bg-transparent px-8 text-base font-medium text-white hover:bg-white/10"
           >
-            Download CV — coming soon
+            <a href="/Satvik_Saluja_CV.docx" download>
+              Download CV
+            </a>
           </Button>
         </div>
       </div>

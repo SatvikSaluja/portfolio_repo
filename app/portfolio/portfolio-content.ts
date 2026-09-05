@@ -433,7 +433,7 @@ export const PAGE_CONTENT_HTML = `  <!-- ============ 1. HERO ============ -->
     <div class="section-head">
       <span class="eyebrow">CV</span>
       <h2>CV</h2>
-      <p class="lede">Education and technical toolkit. A full CV is available on request.</p>
+      <p class="lede">Education and technical toolkit. <a href="/Satvik_Saluja_CV.docx" download>Download the full CV</a>.</p>
     </div>
 
     <div class="subsection">
