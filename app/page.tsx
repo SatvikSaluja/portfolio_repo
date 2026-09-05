@@ -25,12 +25,12 @@ export default function Home() {
           >
             Satvik Saluja
           </h1>
-          <p className="mx-auto mt-4 max-w-md text-base text-white/70">
-            Scientific machine learning, computational biology, and biomedical AI.
+          <p className="mx-auto mt-4 max-w-md font-mono text-sm tracking-wide text-white/70">
+            Scientific Machine Learning, Computational Biology, and Biomedical AI.
           </p>
         </div>
 
-        <div className="flex flex-col items-center gap-3 sm:flex-row">
+        <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row">
           <Button
             asChild
             size="lg"
