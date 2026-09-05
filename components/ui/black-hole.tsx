@@ -2,38 +2,162 @@
 
 import { useEffect, useRef } from "react";
 
-type Star = { x: number; y: number; r: number; phase: number; speed: number };
-type DiskParticle = {
-  r: number;
-  theta: number;
-  speed: number;
-  size: number;
-  color: [number, number, number];
-  alpha: number;
-};
+const VERTEX_SRC = `#version 300 es
+in vec2 a_pos;
+void main() {
+  gl_Position = vec4(a_pos, 0.0, 1.0);
+}
+`;
 
-function rand(min: number, max: number) {
-  return min + Math.random() * (max - min);
+// A lightweight ray-marched gravitational-lensing shader: light rays bend as
+// they pass near the hole, so the far side of the accretion disk is lensed
+// into a ring that wraps above and below the event horizon — the classic
+// "Interstellar" look — rather than a disk that's simply hidden behind it.
+const FRAGMENT_SRC = `#version 300 es
+precision highp float;
+
+uniform vec2 u_resolution;
+uniform float u_time;
+
+out vec4 fragColor;
+
+float hash(vec2 p) {
+  p = fract(p * vec2(123.34, 456.21));
+  p += dot(p, p + 45.32);
+  return fract(p.x * p.y);
 }
 
-// Disk color ramp: white-hot near the horizon, cooling to deep orange/red at the outer edge.
-function diskColor(frac: number): [number, number, number] {
-  const stops: [number, number, number][] = [
-    [255, 246, 214], // near horizon — white/gold
-    [255, 191, 120], // amber
-    [255, 122, 61], // orange
-    [201, 58, 42], // outer edge — deep red
-  ];
-  const t = Math.min(0.999, Math.max(0, frac)) * (stops.length - 1);
-  const i = Math.floor(t);
-  const f = t - i;
-  const a = stops[i];
-  const b = stops[Math.min(i + 1, stops.length - 1)];
-  return [
-    Math.round(a[0] + (b[0] - a[0]) * f),
-    Math.round(a[1] + (b[1] - a[1]) * f),
-    Math.round(a[2] + (b[2] - a[2]) * f),
-  ];
+// Procedural starfield sampled by ray direction.
+vec3 stars(vec3 dir) {
+  vec3 col = vec3(0.0);
+  vec2 uv = dir.xy / (1.0 + abs(dir.z)) * 3.0;
+  for (int layer = 0; layer < 2; layer++) {
+    float scale = layer == 0 ? 42.0 : 90.0;
+    vec2 cell = floor(uv * scale);
+    float h = hash(cell + float(layer) * 17.0);
+    if (h > 0.986) {
+      vec2 f = fract(uv * scale) - 0.5;
+      float d = length(f);
+      float star = smoothstep(0.10, 0.0, d);
+      float tw = 0.6 + 0.4 * sin(u_time * (1.5 + h * 4.0) + h * 30.0);
+      col += vec3(star * tw * (0.7 + 0.3 * h));
+    }
+  }
+  return col;
+}
+
+// Warm-to-cool accretion-disk color ramp with fine concentric banding.
+vec3 diskColor(float r, float innerR, float outerR, float theta) {
+  float frac = clamp((r - innerR) / (outerR - innerR), 0.0, 1.0);
+  vec3 hot   = vec3(1.00, 0.98, 0.90);
+  vec3 amber = vec3(1.00, 0.78, 0.42);
+  vec3 orange= vec3(1.00, 0.45, 0.18);
+  vec3 deep  = vec3(0.55, 0.12, 0.06);
+  vec3 col = mix(hot, amber, smoothstep(0.0, 0.35, frac));
+  col = mix(col, orange, smoothstep(0.25, 0.65, frac));
+  col = mix(col, deep, smoothstep(0.55, 1.0, frac));
+
+  float bands = 0.5 + 0.5 * sin(r * 5.0 - u_time * 1.4 + sin(theta * 6.0) * 0.6);
+  col *= 0.72 + 0.5 * bands;
+
+  float innerGlow = smoothstep(innerR + 0.9, innerR, r);
+  col += hot * innerGlow * 1.4;
+
+  float outerFade = smoothstep(outerR, outerR - 1.2, r);
+  col *= mix(0.15, 1.0, outerFade);
+
+  return col;
+}
+
+void main() {
+  vec2 uv = (gl_FragCoord.xy - 0.5 * u_resolution) / u_resolution.y;
+
+  // Camera: looking slightly down at the disk. Pulled back further on
+  // portrait/narrow viewports (mobile) so the hole doesn't swallow the frame.
+  float aspect = u_resolution.x / u_resolution.y;
+  float distScale = max(1.0, 1.6 / max(aspect, 0.001));
+  vec3 camPos = vec3(0.0, 1.35 * distScale, -6.2 * distScale);
+  vec3 fwd = normalize(vec3(0.0, -0.16, 1.0));
+  vec3 right = normalize(cross(vec3(0.0, 1.0, 0.0), fwd));
+  vec3 up = cross(fwd, right);
+  float fov = 1.15;
+  vec3 dir = normalize(fwd + uv.x * fov * right + uv.y * fov * up);
+
+  vec3 pos = camPos;
+  float horizonR = 1.0;
+  float innerDiskR = 1.55;
+  float outerDiskR = 4.6;
+  float bendStrength = 0.6;
+
+  vec3 result = vec3(0.0);
+  bool hitDisk = false;
+  bool hitHorizon = false;
+  float dt = 0.14;
+
+  for (int i = 0; i < 170; i++) {
+    float r = length(pos);
+    if (r < horizonR) { hitHorizon = true; break; }
+    if (r > 40.0) break;
+
+    vec3 accel = -normalize(pos) * (bendStrength / (r * r));
+    vec3 newDir = normalize(dir + accel * dt);
+
+    vec3 prevPos = pos;
+    pos += newDir * dt;
+    dir = newDir;
+
+    if (sign(prevPos.y) != sign(pos.y) && !hitDisk) {
+      float t = prevPos.y / (prevPos.y - pos.y);
+      vec3 hitPos = mix(prevPos, pos, t);
+      float rHit = length(hitPos.xz);
+      if (rHit > innerDiskR && rHit < outerDiskR) {
+        float theta = atan(hitPos.z, hitPos.x) + u_time * 0.18;
+        vec3 c = diskColor(rHit, innerDiskR, outerDiskR, theta);
+        float edgeOn = 1.0 - abs(newDir.y) * 0.6;
+        result = c * edgeOn;
+        hitDisk = true;
+      }
+    }
+
+    dt = min(dt * 1.012, 0.5);
+  }
+
+  vec3 color;
+  if (hitHorizon) {
+    color = vec3(0.0);
+  } else if (hitDisk) {
+    color = result;
+  } else {
+    color = stars(dir) + vec3(0.01, 0.008, 0.014);
+  }
+
+  // Photon-ring boost: rays that grazed close to the horizon without falling
+  // in read as a bright rim even when they didn't cross the disk.
+  float closest = length(pos);
+  float ring = smoothstep(horizonR * 1.55, horizonR * 1.02, closest);
+  if (!hitHorizon) {
+    color += vec3(1.0, 0.92, 0.78) * ring * ring * 0.9;
+  }
+
+  float vignette = 1.0 - smoothstep(0.7, 1.35, length(uv));
+  color *= mix(0.82, 1.0, vignette);
+
+  fragColor = vec4(color, 1.0);
+}
+`;
+
+function compileShader(gl: WebGL2RenderingContext, type: number, src: string) {
+  const shader = gl.createShader(type);
+  if (!shader) return null;
+  gl.shaderSource(shader, src);
+  gl.compileShader(shader);
+  if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+    // eslint-disable-next-line no-console
+    console.error("[BlackHole] shader compile error:", gl.getShaderInfoLog(shader));
+    gl.deleteShader(shader);
+    return null;
+  }
+  return shader;
 }
 
 export type BlackHoleProps = {
@@ -41,9 +165,10 @@ export type BlackHoleProps = {
 };
 
 /**
- * An animated black hole with a Kepler-orbiting accretion disk, a photon-ring
- * glow, and a twinkling starfield — rendered on a single canvas, no
- * dependencies. Freezes to a single frame under prefers-reduced-motion.
+ * A ray-marched gravitational-lensing black hole (WebGL2): the accretion
+ * disk's far side bends into a ring above and below the event horizon.
+ * Falls back to a plain black canvas if WebGL2 or shader compilation is
+ * unavailable. Freezes to a single frame under prefers-reduced-motion.
  */
 export function BlackHole({ className }: BlackHoleProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -51,8 +176,6 @@ export function BlackHole({ className }: BlackHoleProps) {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
     const wrap = canvas.parentElement;
     if (!wrap) return;
 
@@ -61,191 +184,103 @@ export function BlackHole({ className }: BlackHoleProps) {
       window.matchMedia &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-    let W = 0,
-      H = 0,
-      cx = 0,
-      cy = 0,
-      horizonR = 0,
-      diskOuterR = 0,
-      squash = 0.34,
-      raf = 0;
-    let stars: Star[] = [];
-    let disk: DiskParticle[] = [];
-    let resizeTimer: ReturnType<typeof setTimeout> | undefined;
+    const gl = canvas.getContext("webgl2", {
+      antialias: true,
+      preserveDrawingBuffer: true,
+    });
+    if (!gl) return;
+
+    const vs = compileShader(gl, gl.VERTEX_SHADER, VERTEX_SRC);
+    const fs = compileShader(gl, gl.FRAGMENT_SHADER, FRAGMENT_SRC);
+    if (!vs || !fs) return;
+
+    const program = gl.createProgram();
+    if (!program) return;
+    gl.attachShader(program, vs);
+    gl.attachShader(program, fs);
+    gl.linkProgram(program);
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+      // eslint-disable-next-line no-console
+      console.error("[BlackHole] program link error:", gl.getProgramInfoLog(program));
+      return;
+    }
+
+    const posLoc = gl.getAttribLocation(program, "a_pos");
+    const buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(
+      gl.ARRAY_BUFFER,
+      new Float32Array([-1, -1, 3, -1, -1, 3]),
+      gl.STATIC_DRAW,
+    );
+
+    const vao = gl.createVertexArray();
+    gl.bindVertexArray(vao);
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.enableVertexAttribArray(posLoc);
+    gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
+
+    const u_resolution = gl.getUniformLocation(program, "u_resolution");
+    const u_time = gl.getUniformLocation(program, "u_time");
+
+    let raf = 0;
     let disposed = false;
+    let resizeTimer: ReturnType<typeof setTimeout> | undefined;
+    let W = 0,
+      H = 0;
 
-    function build() {
-      // Read DPR fresh each time — never cache it alongside a container size
-      // that might still be mid-reflow (e.g. before web fonts finish loading).
-      const DPR = Math.min(window.devicePixelRatio || 1, 2);
+    function resizeCanvas() {
       const rect = wrap!.getBoundingClientRect();
-      W = rect.width || 800;
-      H = rect.height || 300;
-      canvas!.width = Math.round(W * DPR);
-      canvas!.height = Math.round(H * DPR);
-      canvas!.style.width = W + "px";
-      canvas!.style.height = H + "px";
-      ctx!.setTransform(DPR, 0, 0, DPR, 0, 0);
-
-      cx = W * 0.5;
-      cy = H * 0.54;
-      const minDim = Math.min(W, H);
-      horizonR = minDim * 0.135;
-      diskOuterR = Math.min(W * 0.46, minDim * 0.62);
-      squash = 0.34;
-
-      stars = [];
-      const starCount = Math.round((W * H) / 3200);
-      for (let s = 0; s < starCount; s++) {
-        stars.push({
-          x: rand(0, W),
-          y: rand(0, H),
-          r: rand(0.4, 1.4),
-          phase: rand(0, Math.PI * 2),
-          speed: rand(0.01, 0.03),
-        });
-      }
-
-      disk = [];
-      const count = Math.round(minDim * 0.9);
-      for (let i = 0; i < count; i++) {
-        const r = rand(horizonR * 1.18, diskOuterR);
-        const frac = (r - horizonR) / (diskOuterR - horizonR);
-        disk.push({
-          r,
-          theta: rand(0, Math.PI * 2),
-          speed: 0.55 / Math.pow(r / horizonR, 1.5),
-          size: rand(0.6, 1.8) * (1 - frac * 0.4),
-          color: diskColor(frac),
-          alpha: rand(0.5, 1),
-        });
-      }
+      const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+      W = Math.max(1, Math.round(rect.width * dpr));
+      H = Math.max(1, Math.round(rect.height * dpr));
+      canvas!.width = W;
+      canvas!.height = H;
+      canvas!.style.width = rect.width + "px";
+      canvas!.style.height = rect.height + "px";
+      gl!.viewport(0, 0, W, H);
     }
 
-    function drawDiskParticles(list: DiskParticle[]) {
-      for (const p of list) {
-        const x = cx + Math.cos(p.theta) * p.r;
-        const y = cy + Math.sin(p.theta) * p.r * squash;
-        const c = p.color;
-        ctx!.beginPath();
-        ctx!.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},${p.alpha.toFixed(3)})`;
-        ctx!.arc(x, y, p.size, 0, Math.PI * 2);
-        ctx!.fill();
-      }
+    function render(t: number) {
+      gl!.useProgram(program);
+      gl!.bindVertexArray(vao);
+      gl!.uniform2f(u_resolution, W, H);
+      gl!.uniform1f(u_time, t / 1000);
+      gl!.drawArrays(gl!.TRIANGLES, 0, 3);
     }
 
-    function drawFrame(dt: number) {
-      // Slight trailing fade instead of a hard clear — gives the disk motion a soft glow trail.
-      ctx!.fillStyle = "rgba(2,1,4,0.28)";
-      ctx!.fillRect(0, 0, W, H);
-
-      for (const st of stars) {
-        const tw = 0.55 + 0.45 * Math.sin(st.phase);
-        if (!reduceMotion) st.phase += st.speed;
-        ctx!.fillStyle = `rgba(255,255,255,${(tw * 0.8).toFixed(3)})`;
-        ctx!.fillRect(st.x, st.y, st.r, st.r);
-      }
-
-      const glow = ctx!.createRadialGradient(
-        cx,
-        cy,
-        horizonR * 0.8,
-        cx,
-        cy,
-        diskOuterR * 1.15,
-      );
-      glow.addColorStop(0, "rgba(255,170,90,0.16)");
-      glow.addColorStop(1, "rgba(255,170,90,0)");
-      ctx!.fillStyle = glow;
-      ctx!.beginPath();
-      ctx!.ellipse(
-        cx,
-        cy,
-        diskOuterR * 1.15,
-        diskOuterR * 1.15 * squash * 1.4,
-        0,
-        0,
-        Math.PI * 2,
-      );
-      ctx!.fill();
-
-      const back: DiskParticle[] = [];
-      const front: DiskParticle[] = [];
-      for (const p of disk) {
-        if (!reduceMotion) p.theta += p.speed * dt;
-        (Math.sin(p.theta) < 0 ? back : front).push(p);
-      }
-      drawDiskParticles(back);
-
-      const ring = ctx!.createRadialGradient(
-        cx,
-        cy,
-        horizonR * 0.7,
-        cx,
-        cy,
-        horizonR * 1.35,
-      );
-      ring.addColorStop(0, "rgba(0,0,0,0)");
-      ring.addColorStop(0.62, "rgba(255,214,150,0.9)");
-      ring.addColorStop(0.78, "rgba(255,150,70,0.35)");
-      ring.addColorStop(1, "rgba(0,0,0,0)");
-      ctx!.fillStyle = ring;
-      ctx!.beginPath();
-      ctx!.arc(cx, cy, horizonR * 1.35, 0, Math.PI * 2);
-      ctx!.fill();
-
-      ctx!.beginPath();
-      ctx!.fillStyle = "#000";
-      ctx!.arc(cx, cy, horizonR, 0, Math.PI * 2);
-      ctx!.fill();
-
-      drawDiskParticles(front);
-    }
-
-    function step() {
-      drawFrame(1);
-      raf = requestAnimationFrame(step);
+    function loop(t: number) {
+      render(t);
+      raf = requestAnimationFrame(loop);
     }
 
     function handleResize() {
       clearTimeout(resizeTimer);
       resizeTimer = setTimeout(() => {
         if (disposed) return;
-        // Skip a no-op rebuild if the container's size hasn't actually changed.
-        const rect = wrap!.getBoundingClientRect();
-        if (Math.round(rect.width) === Math.round(W) && Math.round(rect.height) === Math.round(H)) {
-          return;
-        }
-        cancelAnimationFrame(raf);
-        build();
-        if (reduceMotion) drawFrame(0);
-        else step();
+        resizeCanvas();
+        if (reduceMotion) render(0);
       }, 120);
     }
 
     let ro: ResizeObserver | undefined;
 
     try {
-      build();
-      ctx.fillStyle = "#000";
-      ctx.fillRect(0, 0, W, H);
+      resizeCanvas();
       if (reduceMotion) {
-        drawFrame(0);
+        render(0);
       } else {
-        step();
+        raf = requestAnimationFrame(loop);
       }
-      // A ResizeObserver on the container catches reflows a `window.resize`
-      // listener would miss entirely — web fonts finishing, sidebar layout
-      // settling, container queries — anything that changes this element's
-      // size without the window itself changing size.
       if (typeof ResizeObserver !== "undefined") {
         ro = new ResizeObserver(handleResize);
         ro.observe(wrap);
       } else {
         window.addEventListener("resize", handleResize);
       }
-    } catch {
-      // Fail quietly — the black background alone still reads as a finished hero.
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error("[BlackHole] render setup failed:", err);
     }
 
     return () => {
@@ -254,6 +289,11 @@ export function BlackHole({ className }: BlackHoleProps) {
       clearTimeout(resizeTimer);
       ro?.disconnect();
       window.removeEventListener("resize", handleResize);
+      gl.deleteProgram(program);
+      gl.deleteShader(vs);
+      gl.deleteShader(fs);
+      gl.deleteBuffer(buf);
+      if (vao) gl.deleteVertexArray(vao);
     };
   }, []);
 
@@ -261,7 +301,7 @@ export function BlackHole({ className }: BlackHoleProps) {
     <canvas
       ref={canvasRef}
       className={className}
-      style={{ display: "block", width: "100%", height: "100%" }}
+      style={{ display: "block", width: "100%", height: "100%", background: "#000" }}
       aria-hidden="true"
     />
   );
