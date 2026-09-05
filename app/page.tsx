@@ -10,7 +10,7 @@ export default function Home() {
       <div className="absolute inset-0">
         <BlackHole />
       </div>
-      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-black/40" />
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-black/40" />
 
       <div className="relative z-10 flex flex-col items-center gap-8 px-6 text-center">
         <div>
