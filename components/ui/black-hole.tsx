@@ -60,7 +60,6 @@ export function BlackHole({ className }: BlackHoleProps) {
       typeof window !== "undefined" &&
       window.matchMedia &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const DPR = Math.min(window.devicePixelRatio || 1, 2);
 
     let W = 0,
       H = 0,
@@ -76,6 +75,9 @@ export function BlackHole({ className }: BlackHoleProps) {
     let disposed = false;
 
     function build() {
+      // Read DPR fresh each time — never cache it alongside a container size
+      // that might still be mid-reflow (e.g. before web fonts finish loading).
+      const DPR = Math.min(window.devicePixelRatio || 1, 2);
       const rect = wrap!.getBoundingClientRect();
       W = rect.width || 800;
       H = rect.height || 300;
@@ -209,11 +211,19 @@ export function BlackHole({ className }: BlackHoleProps) {
       clearTimeout(resizeTimer);
       resizeTimer = setTimeout(() => {
         if (disposed) return;
+        // Skip a no-op rebuild if the container's size hasn't actually changed.
+        const rect = wrap!.getBoundingClientRect();
+        if (Math.round(rect.width) === Math.round(W) && Math.round(rect.height) === Math.round(H)) {
+          return;
+        }
         cancelAnimationFrame(raf);
         build();
-        step();
-      }, 200);
+        if (reduceMotion) drawFrame(0);
+        else step();
+      }, 120);
     }
+
+    let ro: ResizeObserver | undefined;
 
     try {
       build();
@@ -223,6 +233,15 @@ export function BlackHole({ className }: BlackHoleProps) {
         drawFrame(0);
       } else {
         step();
+      }
+      // A ResizeObserver on the container catches reflows a `window.resize`
+      // listener would miss entirely — web fonts finishing, sidebar layout
+      // settling, container queries — anything that changes this element's
+      // size without the window itself changing size.
+      if (typeof ResizeObserver !== "undefined") {
+        ro = new ResizeObserver(handleResize);
+        ro.observe(wrap);
+      } else {
         window.addEventListener("resize", handleResize);
       }
     } catch {
@@ -233,6 +252,7 @@ export function BlackHole({ className }: BlackHoleProps) {
       disposed = true;
       cancelAnimationFrame(raf);
       clearTimeout(resizeTimer);
+      ro?.disconnect();
       window.removeEventListener("resize", handleResize);
     };
   }, []);
