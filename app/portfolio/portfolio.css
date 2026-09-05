@@ -321,6 +321,7 @@
   }
   .entry + .entry{margin-top:26px;}
   .entry-head-top{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;}
+  .entry-title-group{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
   .entry-head h3{font-size:1.2rem;}
   .entry-domain{font-family:var(--font-mono);font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);margin-top:6px;}
   .entry-org{font-family:var(--font-mono);font-size:.78rem;color:var(--ink-muted);margin-top:6px;}

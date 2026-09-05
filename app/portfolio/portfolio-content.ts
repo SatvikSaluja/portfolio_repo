@@ -239,41 +239,29 @@ export const PAGE_CONTENT_HTML = `  <!-- ============ 1. HERO ============ -->
       <article class="entry">
         <div class="entry-head">
           <div class="entry-head-top">
-            <h3>HNN-Core Surrogate</h3>
+            <div class="entry-title-group">
+              <h3>HNN-Core Surrogate</h3>
+              <span class="pill pill--progress">Undergoing</span>
+            </div>
             <div class="icon-links icon-links-top">
               <a class="icon-link" href="https://github.com/SatvikSaluja/hnn-core" target="_blank" rel="noopener"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>GitHub</a>
             </div>
           </div>
           <p class="entry-domain">Cortical Circuits · Computational Neuroscience</p>
         </div>
-        <p class="entry-sub">A constrained, continually-adapting differentiable surrogate for cortical microcircuit dynamics.</p>
+        <p class="entry-sub">Constrained Differentiable Modeling of Cortical Microcircuit Dynamics. Independent research project extending the constrained-GNN methodology from the Cell Digital Twin to a second, structurally different biological system: biophysically detailed cortical microcircuit simulation. Motivated by a known computational bottleneck — NEURON-based simulators like HNN-Core are too slow to support large-scale parameter inference or uncertainty quantification against empirical MEG/EEG data — this project builds a differentiable surrogate with hard biophysical constraints baked directly into the architecture.</p>
 
         <span class="blocklabel">Approach</span>
         <ul class="bullets">
-          <li>A graph representation of the cortical microcircuit — cell populations/compartments as nodes, synaptic connections as edges — using the per-synapse connectivity DataFrame (source/target GID, section, segment, receptor, weight) I designed during my GSoC refactor of HNN-Core.</li>
-          <li>Hard biophysical constraints as architectural gates, mirroring Project 1's directionality gate: Dale's Law (a cell's outgoing synapses are all-excitatory or all-inhibitory) and non-negative conduction delays, enforced structurally rather than through a soft penalty.</li>
-          <li>EWC-based continual adaptation as new drive patterns or connectivity configurations are explored, reusing Project 1's EWC machinery on a different model family.</li>
-          <li>A Jacobian-based bifurcation detector aimed at transitions between qualitatively different oscillatory regimes — the same probe as Project 1, applied to a system where "regime change" already has direct scientific meaning.</li>
+          <li>Developing a GNN-based differentiable surrogate for HNN-Core to accelerate parameter inference and uncertainty quantification in biophysically detailed cortical simulations.</li>
+          <li>Designing hard architectural constraints including Dale's Law and non-negative conduction delays rather than relying on soft training penalties.</li>
+          <li>Building on the synaptic connectivity DataFrame representation developed through GSoC as the graph schema for the surrogate.</li>
         </ul>
 
         <span class="blocklabel">Methods &amp; technologies</span>
-        <p class="stack-line">PyTorch Geometric · HNN-Core · NEURON · Elastic Weight Consolidation</p>
-        <div class="stat-row">
-          <div class="stat"><b class="tnum">2</b><span>Hard biophysical constraints</span></div>
-          <div class="stat"><b>Reused</b><span>Project 1's EWC + Jacobian toolkit</span></div>
-        </div>
-
-        <span class="blocklabel">Result / contribution to date</span>
-        <p class="result-text">Built directly on connectivity internals from my GSoC refactor of HNN-Core, which substantially de-risks the data-generation and domain-correctness problem that usually makes this kind of project hard. Architecture design is underway; no simulation results yet.</p>
+        <p class="stack-line">PyTorch Geometric · HNN-Core</p>
 
         <p class="entry-links"><a href="https://github.com/SatvikSaluja/hnn-core" target="_blank" rel="noopener">GSoC connectivity work this builds on →</a></p>
-
-        <span class="blocklabel roadmap">Evaluation roadmap — planned, not yet run</span>
-        <ul class="bullets">
-          <li>Speed/accuracy tradeoff against real hnn-core simulation runs, using my own GSoC branch to generate fast, correct ground-truth training data.</li>
-          <li>Ablation confirming the hard biophysical constraints (Dale's Law, non-negative delays) are never violated, against a soft-penalty baseline.</li>
-          <li>Validate the bifurcation detector against a documented oscillatory-regime shift in hnn-core under a specific drive-parameter sweep.</li>
-        </ul>
       </article>
       <!-- Project 4 -->
       <article class="entry">
