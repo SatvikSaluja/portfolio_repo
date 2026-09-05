@@ -31,9 +31,14 @@
   .portfolio-scope img,.portfolio-scope svg{display:block;max-width:100%;}
   .portfolio-scope a{color:var(--accent);text-decoration:none;border-bottom:1px solid transparent;}
   .portfolio-scope a:hover{border-bottom-color:var(--accent);}
-  .portfolio-scope h1,.portfolio-scope h2,.portfolio-scope h3{font-family:var(--font-display);font-weight:600;line-height:1.2;margin:0;text-wrap:balance;color:var(--ink);}
-  .portfolio-scope p{margin:0;}
-  .portfolio-scope ul{margin:0;padding:0;list-style:none;}
+  /* :where() keeps these resets at zero specificity so they never fight a
+     component's own single-class margin rule (e.g. .idlinks, .entry-sub) —
+     without it, ".portfolio-scope p{margin:0}" (specificity 0,1,1) silently
+     beat plenty of single-class ".foo{margin-top:...}" rules (0,1,0) and
+     collapsed several elements flush against whatever preceded them. */
+  .portfolio-scope :where(h1,h2,h3){font-family:var(--font-display);font-weight:600;line-height:1.2;margin:0;text-wrap:balance;color:var(--ink);}
+  .portfolio-scope :where(p){margin:0;}
+  .portfolio-scope :where(ul){margin:0;padding:0;list-style:none;}
   .portfolio-scope ::selection{background:var(--accent-wash);color:var(--ink);}
   .portfolio-scope a:focus-visible, .portfolio-scope button:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:1px;}
 
