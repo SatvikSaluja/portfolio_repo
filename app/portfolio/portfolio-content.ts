@@ -47,12 +47,12 @@ export const PAGE_CONTENT_HTML = `  <!-- ============ 1. HERO ============ -->
       <p>The same toolkit — hard architectural constraints, elastic-weight-consolidated online adaptation, and Jacobian-norm bifurcation detection — recurs across three independent biological simulators: a multi-well organoid-monitoring system fusing biosensor data, a metabolic flux surrogate built from scratch, and a cortical-microcircuit surrogate built on connectivity internals I already maintain through my Google Summer of Code work. Related projects extend this same scientific-ML mindset — evidence and uncertainty over convenience — to autonomous molecular discovery and retrieval-grounded biomedical AI.</p>
     </div>
 
-    <div class="mechanism measure" role="img" aria-label="Diagram: a raw flux prediction passes through a fixed null-space projection to become a conservation-valid output">
-      <div class="step"><b>Raw prediction</b>GNN flux output, no guarantee of mass balance</div>
-      <div class="arrow">→</div>
-      <div class="step"><b>Fixed projection</b>onto null(S), computed once via SVD, offline</div>
-      <div class="arrow">→</div>
-      <div class="step"><b>Valid output</b>conservation-valid by construction, not by training</div>
+    <div class="mechanism" role="img" aria-label="Diagram: a raw flux prediction passes through a fixed null-space projection to become a conservation-valid output">
+      <div class="step"><span class="step-num">01</span><b>Raw prediction</b><span class="step-desc">GNN flux output, no guarantee of mass balance</span></div>
+      <div class="arrow" aria-hidden="true">→</div>
+      <div class="step"><span class="step-num">02</span><b>Fixed projection</b><span class="step-desc">onto null(S), computed once via SVD, offline</span></div>
+      <div class="arrow" aria-hidden="true">→</div>
+      <div class="step"><span class="step-num">03</span><b>Valid output</b><span class="step-desc">conservation-valid by construction, not by training</span></div>
     </div>
 
     <div>
@@ -65,21 +65,21 @@ export const PAGE_CONTENT_HTML = `  <!-- ============ 1. HERO ============ -->
           <tbody>
             <tr>
               <th>Hard architectural constraint</th>
-              <td>An auxiliary O₂/lactate flux head tied to the health-score head by a hard stoichiometric constraint, not a soft loss term.</td>
-              <td>SVD-derived null-space projection of the stoichiometric matrix, applied inside the forward pass; a KEGG reversibility mask gates directionality via activation choice (β=6 vs β=1 softplus).</td>
-              <td>Dale's-law and non-negative-delay constraints enforced as architectural gates on synaptic weight and delay outputs, not as training penalties.</td>
+              <td data-label="OrganoidTwin — organoid systems">An auxiliary O₂/lactate flux head tied to the health-score head by a hard stoichiometric constraint, not a soft loss term.</td>
+              <td data-label="Cell Digital Twin — metabolism">SVD-derived null-space projection of the stoichiometric matrix, applied inside the forward pass; a KEGG reversibility mask gates directionality via activation choice (β=6 vs β=1 softplus).</td>
+              <td data-label="HNN-Core surrogate — cortical circuits">Dale's-law and non-negative-delay constraints enforced as architectural gates on synaptic weight and delay outputs, not as training penalties.</td>
             </tr>
             <tr>
               <th>Online continual adaptation</th>
-              <td>EWC fine-tuning on live-streamed plate conditions; the regularization strength was empirically retuned by ~6 orders of magnitude from the textbook default for this model's gradient scale.</td>
-              <td>EWC fine-tuning on live (glucose, O₂, enzyme, temperature) regimes streamed over WebSocket, Fisher-weighted against catastrophic forgetting.</td>
-              <td>EWC fine-tuning as new drive patterns and connectivity configurations are explored — no retraining from scratch per regime.</td>
+              <td data-label="OrganoidTwin — organoid systems">EWC fine-tuning on live-streamed plate conditions; the regularization strength was empirically retuned by ~6 orders of magnitude from the textbook default for this model's gradient scale.</td>
+              <td data-label="Cell Digital Twin — metabolism">EWC fine-tuning on live (glucose, O₂, enzyme, temperature) regimes streamed over WebSocket, Fisher-weighted against catastrophic forgetting.</td>
+              <td data-label="HNN-Core surrogate — cortical circuits">EWC fine-tuning as new drive patterns and connectivity configurations are explored — no retraining from scratch per regime.</td>
             </tr>
             <tr>
               <th>Regime-transition detection</th>
-              <td>Jacobian-sensitivity bifurcation detector calibrated from known-healthy reference periods; ~14-hour median lead time ahead of ground-truth decline onset.</td>
-              <td>‖∂flux/∂env‖ via autograd Jacobian; adaptive z-score threshold flags shifts like aerobic → Warburg-like fermentation.</td>
-              <td>Same Jacobian-norm probe, targeting shifts in dominant oscillatory frequency or onset of pathological synchrony.</td>
+              <td data-label="OrganoidTwin — organoid systems">Jacobian-sensitivity bifurcation detector calibrated from known-healthy reference periods; ~14-hour median lead time ahead of ground-truth decline onset.</td>
+              <td data-label="Cell Digital Twin — metabolism">‖∂flux/∂env‖ via autograd Jacobian; adaptive z-score threshold flags shifts like aerobic → Warburg-like fermentation.</td>
+              <td data-label="HNN-Core surrogate — cortical circuits">Same Jacobian-norm probe, targeting shifts in dominant oscillatory frequency or onset of pathological synchrony.</td>
             </tr>
           </tbody>
         </table>
@@ -98,7 +98,7 @@ export const PAGE_CONTENT_HTML = `  <!-- ============ 1. HERO ============ -->
       <div class="entry-head">
         <div class="entry-head-top">
           <h3>Computational Neuroscience Research Contributor</h3>
-          <span class="pill pill--progress">2026 · Ongoing</span>
+          <span class="pill pill--built">May 2026 – Aug 2026</span>
         </div>
         <p class="entry-org">Google Summer of Code 2026 · INCF — HNN-Core</p>
       </div>
